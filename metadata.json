@@ -1,0 +1,5 @@
+{
+  "name": "ATS Scan Pro",
+  "description": "A professional-grade Applicant Tracking System (ATS) simulator that evaluates resumes against job descriptions using advanced AI reasoning to provide match percentages, keyword gaps, and strategic feedback.",
+  "requestFramePermissions": []
+}
