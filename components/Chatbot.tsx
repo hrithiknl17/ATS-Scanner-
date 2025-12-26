@@ -28,12 +28,24 @@ const Chatbot: React.FC = () => {
     if (!text.trim()) return;
     
     const userMsg = { role: 'user' as const, text };
-    setMessages(prev => [...prev, userMsg]);
+    // 1. Add user message to state immediately
+    const updatedMessages = [...messages, userMsg];
+    setMessages(updatedMessages);
+    
     setInput('');
     setIsTyping(true);
 
     try {
-      const aiResponse = await getChatResponse(text, []); // Simplified history for now
+      // 2. Convert state to Gemini history format (change 'ai' to 'model')
+      // We remove the last message because the SDK usually takes history + new message separately, 
+      // OR depending on your service, you might pass full history.
+      // For your getChatResponse, let's pass the context of previous turns:
+      const history = updatedMessages.slice(0, -1).map(m => ({
+        role: m.role === 'ai' ? 'model' : 'user' as 'model' | 'user',
+        parts: [{ text: m.text }]
+      }));
+
+      const aiResponse = await getChatResponse(text, history);
       setMessages(prev => [...prev, { role: 'ai', text: aiResponse || "Sorry, I couldn't process that." }]);
     } catch (err) {
       setMessages(prev => [...prev, { role: 'ai', text: "Error connecting to service." }]);

@@ -3,6 +3,7 @@ import React from 'react';
 import { ATSResult } from '../types';
 import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
 import Button from './Button';
+import { jsPDF } from 'jspdf';
 
 interface ResultCardProps {
   result: ATSResult;
@@ -26,6 +27,24 @@ const ResultCard: React.FC<ResultCardProps> = ({ result, onReset, onGoToOptimize
 
   const handleExploreJobs = () => {
     window.open('https://grow.google/career-dreamer/home/', '_blank', 'noopener,noreferrer');
+  };
+
+  const downloadReport = () => {
+    const doc = new jsPDF();
+    doc.setFontSize(20);
+    doc.text(`ATS Scan Report: ${result.match_percentage}% Match`, 20, 20);
+    
+    doc.setFontSize(12);
+    doc.text(`Critique:`, 20, 40);
+    const splitCritique = doc.splitTextToSize(result.summary_critique, 170);
+    doc.text(splitCritique, 20, 50);
+    
+    doc.text(`Missing Keywords:`, 20, 100);
+    result.missing_keywords.forEach((kw, i) => {
+      doc.text(`- ${kw}`, 20, 110 + (i * 10));
+    });
+    
+    doc.save("ATS_Report.pdf");
   };
 
   return (
@@ -72,6 +91,10 @@ const ResultCard: React.FC<ResultCardProps> = ({ result, onReset, onGoToOptimize
             <Button variant="secondary" onClick={handleExploreJobs} className="w-full !py-3 border-indigo-100">
                Explore Matching Jobs
                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
+            </Button>
+            <Button variant="secondary" onClick={downloadReport} className="w-full !py-3 border-indigo-100">
+               Download Report
+               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
             </Button>
           </div>
         </div>
