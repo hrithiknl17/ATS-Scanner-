@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Button from './components/Button';
 import ResultCard from './components/ResultCard';
-import AuthPage from './components/AuthPage';
+import { AuthPage } from './components/AuthPage';
 import PrivacyPage from './components/PrivacyPage';
 import TermsPage from './components/TermsPage';
 import SupportPage from './components/SupportPage';
@@ -10,6 +10,7 @@ import Chatbot from './components/Chatbot';
 import OptimizerView from './components/OptimizerView';
 import { ATSResult, EvaluationHistory } from './types';
 import { analyzeResume } from './services/geminiService';
+import { supabase } from './supabaseClient';
 import * as mammoth from 'mammoth';
 import * as pdfjs from 'pdfjs-dist';
 
@@ -38,12 +39,40 @@ const App: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    const savedHistory = localStorage.getItem('ats_history');
-    if (savedHistory) setHistory(JSON.parse(savedHistory));
-    
-    const savedUser = localStorage.getItem('ats_user');
-    if (savedUser) setUser(JSON.parse(savedUser));
+    // Check active session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user as any ?? null);
+      if (session?.user) fetchHistory(session.user.id);
+    });
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user as any ?? null);
+      if (session?.user) fetchHistory(session.user.id);
+      else setHistory([]);
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
+
+  // 2. NEW Function to fetch history
+  const fetchHistory = async (userId: string) => {
+    const { data, error } = await supabase
+      .from('ats_scans')
+      .select('*')
+      .order('created_at', { ascending: false });
+    
+    if (!error && data) {
+      // Map Supabase data to your App's format
+      const mappedHistory = data.map((item: any) => ({
+        id: item.id,
+        timestamp: new Date(item.created_at).getTime(), // Adapted to match existing EvaluationHistory type
+        jobTitle: item.job_description ? (item.job_description.slice(0, 40) + "...") : "Job Scan", // Adapted to match existing EvaluationHistory type
+        result: item.full_result 
+      }));
+      setHistory(mappedHistory);
+    }
+  };
 
   const handleLoginSuccess = (userData: User) => {
     setUser(userData);
@@ -51,9 +80,10 @@ const App: React.FC = () => {
     setCurrentView('home');
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
     setUser(null);
-    localStorage.removeItem('ats_user');
+    setHistory([]);
     setCurrentView('home');
     setResult(null);
   };
@@ -121,15 +151,30 @@ const App: React.FC = () => {
     try {
       const evaluation = await analyzeResume(jobDescription, resumeText);
       setResult(evaluation);
-      const newEntry = { 
-        id: Date.now().toString(), 
-        timestamp: Date.now(), 
-        jobTitle: jobDescription.slice(0, 40) + "...", 
-        result: evaluation 
-      };
-      const newHistory = [newEntry, ...history].slice(0, 5);
-      setHistory(newHistory);
-      localStorage.setItem('ats_history', JSON.stringify(newHistory));
+
+      // SAVE TO SUPABASE
+      if (user) {
+        const { error } = await supabase.from('ats_scans').insert({
+          user_id: (user as any).id,
+          job_description: jobDescription,
+          match_percentage: evaluation.match_percentage,
+          summary_critique: evaluation.summary_critique,
+          full_result: evaluation
+        });
+        
+        if (!error) fetchHistory((user as any).id);
+      } else {
+        const newEntry = { 
+          id: Date.now().toString(), 
+          timestamp: Date.now(), 
+          jobTitle: jobDescription.slice(0, 40) + "...", 
+          result: evaluation 
+        };
+        const newHistory = [newEntry, ...history].slice(0, 5);
+        setHistory(newHistory);
+        localStorage.setItem('ats_history', JSON.stringify(newHistory));
+      }
+
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (err: any) {
       setError(err.message);
