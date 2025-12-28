@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import Button from './components/Button';
 import ResultCard from './components/ResultCard';
@@ -10,22 +9,18 @@ import Chatbot from './components/Chatbot';
 import OptimizerView from './components/OptimizerView';
 import { ATSResult, EvaluationHistory } from './types';
 import { analyzeResume } from './services/geminiService';
-import { supabase } from './supabaseClient';
 import * as mammoth from 'mammoth';
 import * as pdfjs from 'pdfjs-dist';
+import { supabase } from './supabaseClient';
 
 // Configure PDF.js worker
 pdfjs.GlobalWorkerOptions.workerSrc = `https://esm.sh/pdfjs-dist@4.10.38/build/pdf.worker.mjs`;
 
 type View = 'home' | 'auth' | 'privacy' | 'terms' | 'support' | 'optimizer';
-interface User {
-  email: string;
-  name: string;
-}
 
 const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<View>('home');
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<any | null>(null);
   const [jobDescription, setJobDescription] = useState('');
   const [resumeText, setResumeText] = useState('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -38,16 +33,17 @@ const App: React.FC = () => {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // AUTH & HISTORY MANAGEMENT
   useEffect(() => {
-    // Check active session
+    // Check active session on load
     supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user as any ?? null);
+      setUser(session?.user ?? null);
       if (session?.user) fetchHistory(session.user.id);
     });
 
-    // Listen for auth changes
+    // Listen for live auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user as any ?? null);
+      setUser(session?.user ?? null);
       if (session?.user) fetchHistory(session.user.id);
       else setHistory([]);
     });
@@ -55,28 +51,24 @@ const App: React.FC = () => {
     return () => subscription.unsubscribe();
   }, []);
 
-  // 2. NEW Function to fetch history
   const fetchHistory = async (userId: string) => {
     const { data, error } = await supabase
       .from('ats_scans')
       .select('*')
       .order('created_at', { ascending: false });
-    
+
     if (!error && data) {
-      // Map Supabase data to your App's format
       const mappedHistory = data.map((item: any) => ({
         id: item.id,
-        timestamp: new Date(item.created_at).getTime(), // Adapted to match existing EvaluationHistory type
-        jobTitle: item.job_description ? (item.job_description.slice(0, 40) + "...") : "Job Scan", // Adapted to match existing EvaluationHistory type
-        result: item.full_result 
+        timestamp: new Date(item.created_at).getTime(),
+        jobTitle: item.job_description ? (item.job_description.slice(0, 40) + "...") : "Job Scan",
+        result: item.full_result
       }));
       setHistory(mappedHistory);
     }
   };
 
-  const handleLoginSuccess = (userData: User) => {
-    setUser(userData);
-    localStorage.setItem('ats_user', JSON.stringify(userData));
+  const handleLoginSuccess = (userData: any) => {
     setCurrentView('home');
   };
 
@@ -88,6 +80,7 @@ const App: React.FC = () => {
     setResult(null);
   };
 
+  // FILE PARSING
   const parsePDF = async (arrayBuffer: ArrayBuffer) => {
     const pdf = await pdfjs.getDocument({ data: arrayBuffer }).promise;
     let fullText = "";
@@ -151,30 +144,20 @@ const App: React.FC = () => {
     try {
       const evaluation = await analyzeResume(jobDescription, resumeText);
       setResult(evaluation);
-
-      // SAVE TO SUPABASE
+      
+      // Save to Supabase if logged in
       if (user) {
         const { error } = await supabase.from('ats_scans').insert({
-          user_id: (user as any).id,
+          user_id: user.id,
           job_description: jobDescription,
           match_percentage: evaluation.match_percentage,
           summary_critique: evaluation.summary_critique,
           full_result: evaluation
         });
         
-        if (!error) fetchHistory((user as any).id);
-      } else {
-        const newEntry = { 
-          id: Date.now().toString(), 
-          timestamp: Date.now(), 
-          jobTitle: jobDescription.slice(0, 40) + "...", 
-          result: evaluation 
-        };
-        const newHistory = [newEntry, ...history].slice(0, 5);
-        setHistory(newHistory);
-        localStorage.setItem('ats_history', JSON.stringify(newHistory));
+        if (!error) fetchHistory(user.id);
       }
-
+      
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (err: any) {
       setError(err.message);
@@ -214,7 +197,6 @@ const App: React.FC = () => {
                 <p className="font-bold text-slate-800 text-xl">Scanner Locked</p>
                 <p className="text-slate-400 text-sm">Please sign in to access the simulator</p>
              </div>
-             {/* Background mock-up elements */}
              <div className="w-64 h-full bg-slate-200/20 absolute left-0 blur-sm"></div>
              <div className="w-64 h-full bg-slate-200/20 absolute right-0 blur-sm"></div>
           </div>
@@ -256,7 +238,7 @@ const App: React.FC = () => {
               Ready for Your <span className="text-indigo-600">Career Upgrade?</span>
             </h1>
             <p className="text-xl text-slate-500 leading-relaxed">
-              Welcome, {user?.name.split(' ')[0]}. Paste the job and your resume below to start the audit.
+              Welcome, {(user?.user_metadata?.name || user?.email || 'User').split('@')[0]}. Paste the job and your resume below to start the audit.
             </p>
           </header>
 
@@ -290,7 +272,11 @@ const App: React.FC = () => {
                   <input type="file" ref={fileInputRef} className="hidden" accept=".pdf,.docx" onChange={handleFileChange} />
                   {isParsing ? (
                     <div className="flex flex-col items-center gap-4">
-                      <svg className="animate-spin h-10 w-10 text-indigo-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                      {/* FIXED SVG Path below: added 'M' */}
+                      <svg className="animate-spin h-10 w-10 text-indigo-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
                       <p className="text-indigo-600 font-medium">Extracting text...</p>
                     </div>
                   ) : fileName ? (
@@ -392,7 +378,9 @@ const App: React.FC = () => {
             <Button variant="ghost" className="text-sm hidden sm:flex" onClick={() => navigateTo('home')}>Scanner</Button>
             {user ? (
               <div className="flex items-center gap-4">
-                <span className="text-sm font-semibold text-slate-600 hidden md:inline">Hi, {user.name.split(' ')[0]}</span>
+                <span className="text-sm font-semibold text-slate-600 hidden md:inline">
+                   Hi, {(user?.user_metadata?.name || user?.email || 'User').split('@')[0]}
+                </span>
                 <Button variant="secondary" className="!py-2 !px-4 text-sm" onClick={handleLogout}>Log Out</Button>
               </div>
             ) : (
