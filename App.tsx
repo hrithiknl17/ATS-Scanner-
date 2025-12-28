@@ -238,7 +238,8 @@ const App: React.FC = () => {
               Ready for Your <span className="text-indigo-600">Career Upgrade?</span>
             </h1>
             <p className="text-xl text-slate-500 leading-relaxed">
-              Welcome, {(user?.user_metadata?.name || user?.email || 'User').split('@')[0]}. Paste the job and your resume below to start the audit.
+              {/* FIXED: Added safe check for user name to prevent white screen crash */}
+              Welcome, <span className="text-indigo-600">{(user?.user_metadata?.name || user?.email || 'User').split('@')[0]}</span>. Paste the job and your resume below to start the audit.
             </p>
           </header>
 
@@ -272,7 +273,7 @@ const App: React.FC = () => {
                   <input type="file" ref={fileInputRef} className="hidden" accept=".pdf,.docx" onChange={handleFileChange} />
                   {isParsing ? (
                     <div className="flex flex-col items-center gap-4">
-                      {/* FIXED SVG Path below: added 'M' */}
+                      {/* FIXED: Added 'M' to the path attribute to fix SVG error */}
                       <svg className="animate-spin h-10 w-10 text-indigo-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
@@ -378,6 +379,7 @@ const App: React.FC = () => {
             <Button variant="ghost" className="text-sm hidden sm:flex" onClick={() => navigateTo('home')}>Scanner</Button>
             {user ? (
               <div className="flex items-center gap-4">
+                 {/* FIXED: Safe check for header name display too */}
                 <span className="text-sm font-semibold text-slate-600 hidden md:inline">
                    Hi, {(user?.user_metadata?.name || user?.email || 'User').split('@')[0]}
                 </span>

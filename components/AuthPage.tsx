@@ -7,13 +7,14 @@ interface AuthPageProps {
   onLoginSuccess: (user: any) => void;
 }
 
+// Define the 3 possible states for this page
 type AuthView = 'login' | 'signup' | 'forgot_password';
 
 export const AuthPage: React.FC<AuthPageProps> = ({ onBack, onLoginSuccess }) => {
   const [view, setView] = useState<AuthView>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [name, setName] = useState(''); // Only used for signup meta_data if you want
+  const [name, setName] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -26,6 +27,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onBack, onLoginSuccess }) =>
 
     try {
       if (view === 'login') {
+        // --- LOGIN LOGIC ---
         const { data, error } = await supabase.auth.signInWithPassword({
           email,
           password,
@@ -34,19 +36,22 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onBack, onLoginSuccess }) =>
         if (data.user) onLoginSuccess(data.user);
       } 
       else if (view === 'signup') {
+        // --- SIGNUP LOGIC ---
         const { data, error } = await supabase.auth.signUp({
           email,
           password,
           options: {
-            data: { name: name || 'User' } // Save their name
+            data: { name: name || 'User' } // Saves name to user_metadata
           }
         });
         if (error) throw error;
-        setMessage('Account created! Please check your email to confirm.');
+        setMessage('Account created! You can now log in.');
+        if (data.session) onLoginSuccess(data.user); // Auto-login if session exists
       }
       else if (view === 'forgot_password') {
+        // --- RESET PASSWORD LOGIC ---
         const { error } = await supabase.auth.resetPasswordForEmail(email, {
-          redirectTo: window.location.origin + '/update-password', // Points back to your app
+          redirectTo: window.location.origin, // Redirects back to your app
         });
         if (error) throw error;
         setMessage('Password reset link sent! Check your email.');
@@ -60,9 +65,9 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onBack, onLoginSuccess }) =>
 
   return (
     <div className="min-h-[calc(100vh-120px)] flex items-center justify-center p-6 animate-in fade-in zoom-in-95 duration-500">
-      <div className="max-w-md w-full bg-white rounded-3xl shadow-2xl shadow-indigo-100 overflow-hidden border border-slate-100 p-8">
+      <div className="max-w-md w-full bg-white rounded-3xl shadow-xl border border-slate-100 p-8">
         
-        {/* Header Section */}
+        {/* Dynamic Header */}
         <div className="text-center mb-8">
           <h2 className="text-3xl font-bold text-slate-900 mb-2">
             {view === 'login' && 'Welcome Back'}
@@ -76,29 +81,28 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onBack, onLoginSuccess }) =>
           </p>
         </div>
 
-        {/* Success/Error Messages */}
+        {/* Alerts */}
         {error && (
-          <div className="mb-4 p-3 bg-red-50 text-red-600 text-sm rounded-lg flex items-center gap-2">
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+          <div className="mb-4 p-3 bg-red-50 text-red-600 text-sm rounded-lg flex items-center gap-2 border border-red-100">
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
             {error}
           </div>
         )}
         {message && (
-          <div className="mb-4 p-3 bg-green-50 text-green-700 text-sm rounded-lg flex items-center gap-2">
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" /></svg>
+          <div className="mb-4 p-3 bg-green-50 text-green-700 text-sm rounded-lg flex items-center gap-2 border border-green-100">
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" /></svg>
             {message}
           </div>
         )}
 
         <form onSubmit={handleAuth} className="space-y-5">
-          
-          {/* Name Field (Signup Only) */}
+          {/* Name Field (Only for Signup) */}
           {view === 'signup' && (
             <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-1.5">Full Name</label>
+              <label className="block text-sm font-semibold text-slate-700 mb-1">Full Name</label>
               <input 
                 type="text" 
-                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all"
+                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
                 placeholder="John Doe"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
@@ -109,10 +113,10 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onBack, onLoginSuccess }) =>
 
           {/* Email Field */}
           <div>
-            <label className="block text-sm font-semibold text-slate-700 mb-1.5">Email Address</label>
+            <label className="block text-sm font-semibold text-slate-700 mb-1">Email Address</label>
             <input 
               type="email" 
-              className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all"
+              className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
               placeholder="name@company.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
@@ -120,10 +124,10 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onBack, onLoginSuccess }) =>
             />
           </div>
 
-          {/* Password Field (Not for Forgot Password view) */}
+          {/* Password Field (Hidden for Forgot Password) */}
           {view !== 'forgot_password' && (
             <div>
-              <div className="flex justify-between mb-1.5">
+              <div className="flex justify-between mb-1">
                 <label className="text-sm font-semibold text-slate-700">Password</label>
                 {view === 'login' && (
                   <button 
@@ -137,7 +141,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onBack, onLoginSuccess }) =>
               </div>
               <input 
                 type="password" 
-                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all"
+                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
                 placeholder="••••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -151,8 +155,8 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onBack, onLoginSuccess }) =>
           </Button>
         </form>
 
-        {/* Footer Links */}
-        <div className="mt-8 text-center text-sm text-slate-500 space-y-2">
+        {/* Footer Navigation */}
+        <div className="mt-8 text-center text-sm text-slate-500 space-y-3">
           {view === 'login' && (
             <p>
               Don't have an account?{' '}
@@ -171,7 +175,6 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onBack, onLoginSuccess }) =>
           )}
           {view === 'forgot_password' && (
             <button onClick={() => setView('login')} className="font-bold text-slate-400 hover:text-slate-600 flex items-center justify-center gap-2 w-full">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
               Back to Sign In
             </button>
           )}
