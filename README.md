@@ -71,6 +71,6 @@ Follow these steps to run the project locally.
 
 ### 1. Clone the Repository
 ```bash
-git clone [https://github.com/yourusername/ats-scan-pro.git](https://github.com/yourusername/ats-scan-pro.git)
+git clone https://github.com/hrithiknl17/ATS-Scanner-/tree/main
 cd ats-scan-pro
 npm install
