@@ -1,7 +1,7 @@
 # 🚀 ATS Scan Pro - AI-Powered Resume Optimizer
 
 <div align="center">
-  <img src="https://via.placeholder.com/1200x600.png?text=ATS+Scan+Pro+Dashboard" alt="ATS Scan Pro Dashboard" width="100%" />
+  <img src="https://res.cloudinary.com/do6k48kg7/image/upload/v1766946885/Screenshot_2025-12-29_000232_jiprzr.png" alt="ATS Scan Pro Dashboard" width="100%" />
   
   <br/>
   
